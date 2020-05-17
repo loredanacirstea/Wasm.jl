@@ -1,0 +1,3 @@
+[deps]
+PkgTemplates = "14b8a8f1-9102-5b29-a752-f990bacb7fe1"
+Wasm = "4f5f229c-165d-48b8-b4af-2be1ce746ec0"
