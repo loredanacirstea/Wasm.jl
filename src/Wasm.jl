@@ -755,6 +755,7 @@ function read_LEB(bytes, pos, maxbits=32, signed=false)
   shift = 0
   bcnt = 0
   startpos = pos
+  byte = bytes[pos]
   while true
       byte = bytes[pos]
       pos += 1
@@ -770,7 +771,7 @@ function read_LEB(bytes, pos, maxbits=32, signed=false)
                   startpos)
       end
   end
-  if signed && (shift < maxbits) && (byte & 0x40)
+  if signed && (shift < maxbits) && (byte >= 0x40)
       # Sign extend
       result = result | - (1 *2^shift)
   end
@@ -1015,7 +1016,7 @@ end
 
 # @unroll_safe
 function pop_block(stack, callstack, sp, fp, csp)
-  block, orig_sp, orig_fp, ra = callstack[csp]
+  block, orig_sp, orig_fp, ra = callstack[csp+1]
   csp -= 1
   t = block.value_type
   # Validate return value if there is one
@@ -1029,7 +1030,7 @@ function pop_block(stack, callstack, sp, fp, csp)
   end
   if length(t.results) == 1
       # Restore main value stack, saving top return value
-      save = stack[sp]
+      save = stack[sp+1]
       sp -= 1
       if save[1] != t.results[1]
           raise("call signature mismatch: %s != %s (%s)" ,
@@ -1041,7 +1042,7 @@ function pop_block(stack, callstack, sp, fp, csp)
       end
       # Put back return value if we have one
       sp += 1
-      stack[sp] = save
+      stack[sp+1] = save
   else
       # Restore value stack to original size prior to call/block
       if orig_sp < sp
@@ -1133,7 +1134,7 @@ end
 
 # @elidable
 function get_function(func, fidx)
-    return func[fidx]
+    return func[fidx+1]
 end
 
 # @elidable
@@ -1522,14 +1523,14 @@ function interpret_mvp(mod,
         # Constants
         #
         elseif 0x41 == opcode  # i32.const
-            pc, val = read_LEB(code, pc, 32, signed=true)
+            pc, val = read_LEB(code, pc, 32, true)
             sp += 1
-            stack[sp] = (I32, val, 0.0)
+            stack[sp+1] = (I32, val, 0.0)
             if TRACE debug("      - %s" , value_repr(stack[sp])) end
         elseif 0x42 == opcode  # i64.const
-            pc, val = read_LEB(code, pc, 64, signed=true)
+            pc, val = read_LEB(code, pc, 64, true)
             sp += 1
-            stack[sp] = (I64, val, 0.0)
+            stack[sp+1] = (I64, val, 0.0)
             if TRACE debug("      - %s" , value_repr(stack[sp])) end
         elseif 0x43 == opcode  # f32.const
             sp += 1
@@ -2611,7 +2612,7 @@ function parse_Memory(d::Mod, leng)
     assert(count <= 1)  # MVP
     flags = read_LEB(d.rdr, 32)  # TODO: fix for MVP
     initial = read_LEB(d.rdr, 32)
-    if flags & 0x1
+    if flags >= 0x1
         maximum = read_LEB(d.rdr, 32)
     else
         maximum = 0
@@ -2631,10 +2632,10 @@ function parse_Global(d::Mod, leng)
         # Run the init_expr
         block = Block(0x00, BLOCK_TYPE[content_type], d.rdr.pos)
         d.csp += 1
-        d.callstack[d.csp] = (block, d.sp, d.fp, 0)
+        d.callstack[d.csp+1] = (block, d.sp, d.fp, 0)
         # WARNING: running code here to get offset!
         interpret(d)  # run iter_expr
-        init_val = d.stack[d.sp]
+        init_val = d.stack[d.sp+1]
 #            print("init_val: %s" , value_repr(init_val))
         d.sp -= 1
         assert(content_type == init_val[1])
@@ -3186,7 +3187,7 @@ mem = Memory(1)
 # print(wasm1)
 #wasm = Vector{UInt8}(wasm1)
 #wasm = Array{UInt8, 1}(wasm1)
-wasm1 = open(f->read(f, String), "test/add.wasm")
+wasm1 = open(f->read(f, String), "test/subs.wasm")
 wasm = Vector{UInt8}(wasm1)
 print("\nfile size: ",length(wasm),"\n")
 #print(wasm, import_value, import_function, mem)
@@ -3197,7 +3198,7 @@ m = Mod(wasm, import_value, import_function, mem)
 init(m)
 dump(m)
 #print(m.export_list)
-run(m, "add", [3,5])
+run(m, "sub_i8", [5,3])
 print("\n-----------------------_________-------------------\n")
 #
 
