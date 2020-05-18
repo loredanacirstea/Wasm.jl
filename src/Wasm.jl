@@ -20,7 +20,7 @@ IS_RPYTHON = false
 
 function elidable(f) return f end
 function unroll_safe(f) return f end
-function promote(x) pass end
+function promote(x)  end
 
 function do_sort(a)
     #sort(a)
@@ -47,7 +47,7 @@ function intmask(i) return i
 end
 
 
-function string_to_int(s, base=10) return int(s, base)
+function string_to_int(s, base=10) return Int(s, base)
 end
 
 
@@ -1145,10 +1145,10 @@ end
 # @elidable
 function get_from_table(table, tidx, table_index)
     tbl = table[tidx]
-    if table_index < 0 || table_index >= length(tbl)
+    if table_index < 1 || table_index > length(tbl)
         raise("undefined element")     # vvv  WAException
     end
-    return tbl[table_index]
+    return tbl[table_index+1]
 end
 
 if IS_RPYTHON
@@ -1345,7 +1345,7 @@ function interpret_mvp(mod,
             type_index_val = stack[sp]
             sp -= 1
             if VALIDATE assert(type_index_val[1] == I32) end
-            table_index = int(type_index_val[2])  # I32
+            table_index = Int(type_index_val[2])  # I32
             promote(table_index)
             fidx = get_from_table(table, ANYFUNC, table_index)
             promote(fidx)
@@ -2066,7 +2066,7 @@ function interpret_mvp(mod,
                 elseif a[2] < -2147483648.0
                     raise("integer overflow")    # vvv  WAException
                 end
-                res = (I32, int(a[2]), 0.0)
+                res = (I32, Int(a[2]), 0.0)
 #            elseif 0xa9 == opcode # i32.trunc_f32_u
 #                if VALIDATE assert(a[1] == F32)
 #                if isnan(a[2])
@@ -2127,7 +2127,7 @@ function interpret_mvp(mod,
 #                    raise WAException("integer overflow")
 #                elseif a[2] < -2**63
 #                    raise WAException("integer overflow")
-                res = (I64, int(a[2]), 0.0)
+                res = (I64, Int(a[2]), 0.0)
             elseif 0xb1 == opcode # i64.trunc_f64_u
                 if VALIDATE assert(a[1] == F64) end
                 if a[2] isa NaN
@@ -2137,7 +2137,7 @@ function interpret_mvp(mod,
                 elseif a[2] <= -1.0
                     raise("integer overflow")   # vvv  WAException
                 end
-                res = (I64, int(a[2]), 0.0)
+                res = (I64, Int(a[2]), 0.0)
             elseif 0xb2 == opcode # f32.convert_i32_s
                 if VALIDATE assert(a[1] == I32) end
                 res = (F32, 0, float(a[1]))
@@ -2265,8 +2265,8 @@ struct Memory
 end
 
 function grow(m::Memory, pages)
-    m.pages += int(pages)
-    m.bytes = push!(m.bytes, ([0]*(int(pages)*(2^16))))
+    m.pages += Int(pages)
+    m.bytes = push!(m.bytes, ([0]*(Int(pages)*(2^16))))
 end
 
 function read_byte(m::Memory, pos)
@@ -2565,7 +2565,7 @@ function parse_Import(d::Mod, leng)
             end
             flags = read_LEB(d.rdr, 32)
             initial = read_LEB(d.rdr, 32)
-            if flags & 0x1
+            if flags >= 0x1
                 maximum = read_LEB(d.rdr, 32)
             else
                 maximum = 0
@@ -2598,7 +2598,7 @@ function parse_Table(d::Mod, leng)
         assert( typee == ANYFUNC)
         flags = read_LEB(d.rdr, 1) # TODO: fix for MVP
         initial = read_LEB(d.rdr, 32) # TODO: fix for MVP
-        if flags & 0x1
+        if flags >= 0x1
             maximum = read_LEB(d.rdr, 32)
         else
             maximum = initial
@@ -2673,13 +2673,13 @@ function parse_Element(d::Mod, leng)
         # Run the init_expr
         block = Block(0x00, BLOCK_TYPE[I32], d.rdr.pos)
         d.csp += 1
-        d.callstack[d.csp] = (block, d.sp, d.fp, 0)
+        d.callstack[d.csp+1] = (block, d.sp, d.fp, 0)
         # WARNING: running code here to get offset!
-        d.interpret()  # run iter_expr
-        offset_val = d.stack[d.sp]
+        interpret(d)  # run iter_expr
+        offset_val = d.stack[d.sp+1]
         d.sp -= 1
         assert(offset_val[1] == I32)
-        offset = int(offset_val[1])
+        offset = Int(offset_val[1])
         num_elem = read_LEB(d.rdr, 32)
         d.table[ANYFUNC] = repeat([0], (offset + num_elem))
         table = d.table[ANYFUNC]
@@ -2739,7 +2739,7 @@ function parse_Data(d::Mod, leng)
         offset_val = d.stack[d.sp]
         d.sp -= 1
         assert(offset_val[1] == I32)
-        offset = int(offset_val[1])
+        offset = Int(offset_val[1])
         size = read_LEB(d.rdr, 32)
         for addr in range(offset, length=offset+size, 1)
             d.memory.bytes[addr] = read_byte(d.rdr)
@@ -2830,8 +2830,8 @@ function spectest_print(mem, args)
     val = args[1][1]
     res = ""
     while val > 0
-        res = res + Char(val & 0xff)
-        val = val>>8
+        res = res + Char(val >= 0xff)
+        val = val/2^8
     end
     @printf("%s '%s'" , value_repr(args[1]), res)
     return []
@@ -2874,7 +2874,7 @@ end
 function env_get_time_ms(mem, args)
     # subtract 30 years to make sure it fits into i32 without wrapping
     # or becoming negative
-    return [(I32, int(time.time()*1000 - 0x38640900), 0.0)]
+    return [(I32, Int(time.time()*1000 - 0x38640900), 0.0)]
 end
 
 
@@ -2982,7 +2982,7 @@ function entry_point(argv)
                 argv_mode = true
                 memory_pages = 256
             elseif arg == "--memory-pages"
-                memory_pages = int(argv[idx])
+                memory_pages = Int(argv[idx])
                 idx += 1
             elseif arg == "--"
                 continue
@@ -3187,7 +3187,7 @@ mem = Memory(1)
 # print(wasm1)
 #wasm = Vector{UInt8}(wasm1)
 #wasm = Array{UInt8, 1}(wasm1)
-wasm1 = open(f->read(f, String), "test/subs.wasm")
+wasm1 = open(f->read(f, String), "test/wasm-table.wasm")
 wasm = Vector{UInt8}(wasm1)
 print("\nfile size: ",length(wasm),"\n")
 #print(wasm, import_value, import_function, mem)
@@ -3198,7 +3198,7 @@ m = Mod(wasm, import_value, import_function, mem)
 init(m)
 dump(m)
 #print(m.export_list)
-run(m, "sub_i8", [5,3])
+run(m, "callByIndex", [4])
 print("\n-----------------------_________-------------------\n")
 #
 

@@ -24,6 +24,7 @@ end
     @test setandrun("call.wasm", "getAnswerPlus1", 0, 0)
     @test setandrun("sums.wasm", "sum_u8", [7,3], 0)
     @test setandrun("subs.wasm", "sub_u8", [7,73], 0)
+    @test setandrun("wasm-table.wasm", "callByIndex", [2], 0)
 
-    
+
 end
