@@ -20,11 +20,12 @@ end
 
 @testset "Wasm.jl" begin
     # Write your own tests here.
-    @test setandrun("add.wasm", "add", [3,5], 0)
+    @test setandrun("add.wasm", "add", [3, 5], 0)
     @test setandrun("call.wasm", "getAnswerPlus1", 0, 0)
-    @test setandrun("sums.wasm", "sum_u8", [7,3], 0)
-    @test setandrun("subs.wasm", "sub_u8", [7,73], 0)
+    @test setandrun("sums.wasm", "sum_u8", [7, 3], 0)
+    @test setandrun("subs.wasm", "sub_u8", [7, 73], 0)
     @test setandrun("wasm-table.wasm", "callByIndex", [2], 0)
+    @test setandrun("arith.wasm", "div", [7, 3], 0)
 
 
 end

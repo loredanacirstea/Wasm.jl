@@ -1837,7 +1837,7 @@ function interpret_mvp(mod,
                 if b[1] == 0
                     raise("integer divide by zero")    # vvv  WAException
                 else
-                    res = (I32, int2uint32(a[1]) / int2uint32(b[1]), 0.0)
+                    res = (I32, floor(int2uint32(a[1]) / int2uint32(b[1])), 0.0)
                 end
             elseif 0x6f == opcode # i32.rem_s
                 if b[1] == 0
@@ -3187,7 +3187,7 @@ mem = Memory(1)
 # print(wasm1)
 #wasm = Vector{UInt8}(wasm1)
 #wasm = Array{UInt8, 1}(wasm1)
-wasm1 = open(f->read(f, String), "test/wasm-table.wasm")
+wasm1 = open(f->read(f, String), "test/arith.wasm")
 wasm = Vector{UInt8}(wasm1)
 print("\nfile size: ",length(wasm),"\n")
 #print(wasm, import_value, import_function, mem)
@@ -3198,7 +3198,7 @@ m = Mod(wasm, import_value, import_function, mem)
 init(m)
 dump(m)
 #print(m.export_list)
-run(m, "callByIndex", [4])
+run(m, "div", [7,4])
 print("\n-----------------------_________-------------------\n")
 #
 
